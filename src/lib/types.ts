@@ -1,0 +1,226 @@
+/** "HH:MM", 24h, local time at the departure airport. */
+export type TimeOfDay = string;
+
+export interface TimeWindow {
+  from: TimeOfDay;
+  to: TimeOfDay;
+}
+
+export interface AirportRef {
+  code: string;
+  name: string;
+  city: string;
+  country: string;
+  /** ISO 3166 alpha-2, e.g. "ES". */
+  countryCode: string;
+  /** Getting from this airport to the city it serves. */
+  transfer?: Transfer;
+}
+
+export interface Transfer {
+  /** The city travellers are heading for, e.g. "Paris" for Beauvais. */
+  city: string;
+  /** Typical minutes by the usual fastest public option. */
+  minutes: number;
+  /** Straight-line distance. */
+  km: number;
+  /** True if worked out from distance rather than a known figure. */
+  estimate: boolean;
+}
+
+/** A single one-way flight with its fare. Times are local at each airport (no offset). */
+export interface Leg {
+  provider: ProviderId;
+  /** "live" = priced just now; "cached" = seen in someone's recent search, may have changed. */
+  freshness: "live" | "cached";
+  airline: string;
+  flightNumber: string;
+  from: AirportRef;
+  to: AirportRef;
+  depart: string; // "YYYY-MM-DDTHH:MM:SS" local
+  arrive: string; // "YYYY-MM-DDTHH:MM:SS" local
+  price: number;
+  currency: string;
+  bookingUrl: string;
+}
+
+export interface Trip {
+  destination: AirportRef;
+  out: Leg;
+  back: Leg;
+  total: number;
+  currency: string;
+  nights: number;
+  /** Hours between landing and the return flight departing. */
+  hoursAtDestination: number;
+  /** Near misses only: how this trip breaks the requested times. */
+  misses?: string[];
+  /** Explore: the search ran out of budget before proving no other date is cheaper. */
+  maybeCheaper?: boolean;
+}
+
+export type SearchMode = "explore" | "route";
+
+export interface SearchRequest {
+  mode: SearchMode;
+  /** Home airports. Outbound can leave from any; return can land at any (if mixAirports). */
+  origins: string[];
+  /** Route mode: destination airport(s), e.g. all of Milan's. */
+  destinations?: string[];
+  /** Inclusive range of outbound dates, "YYYY-MM-DD". */
+  dateFrom: string;
+  dateTo: string;
+  /** Allowed weekdays for the outbound flight, 0 = Sunday ... 6 = Saturday. */
+  outDays: number[];
+  /** Allowed nights away, e.g. [0] for a day trip, [1, 2] for Fri -> Sat/Sun. */
+  nights: number[];
+  outWindow: TimeWindow;
+  returnWindow: TimeWindow;
+  /** Minimum hours on the ground between landing and the return departing. */
+  minHoursAtDestination: number;
+  maxPrice?: number;
+  /** Allow returning to a different home airport than you left from. */
+  mixAirports: boolean;
+  /** Hide these destination countries, or show only these. */
+  countryFilter?: CountryFilter;
+  /** Route mode only: also ask Google Flights (SerpApi) for live prices. */
+  liveCheck?: boolean;
+}
+
+export interface CountryFilter {
+  mode: "exclude" | "include";
+  /** ISO 3166 alpha-2 codes. */
+  codes: string[];
+}
+
+export type ProviderId = "ryanair" | "travelpayouts" | "serpapi";
+
+export interface SourceStatus {
+  id: ProviderId;
+  name: string;
+  enabled: boolean;
+  note: string;
+}
+
+export interface SearchResponse {
+  mode: SearchMode;
+  currency: string;
+  /** Explore: best trip per destination. Route: best trip per outbound date. */
+  trips: Trip[];
+  /** Explore: destinations whose flights just miss the requested times, with why. */
+  nearMisses: Trip[];
+  stats: {
+    upstreamCalls: number;
+    cacheHits: number;
+    ms: number;
+    outboundDates: number;
+    truncated: boolean;
+    /** Google Flights searches used by this search (each uses SerpApi allowance unless cached). */
+    serpapiCalls: number;
+  };
+  warnings: string[];
+}
+
+/**
+ * One-way fare query. A provider returns the cheapest direct fare for each
+ * (departure airport, arrival airport) pair departing inside the window.
+ */
+export interface OneWayQuery {
+  /** Departure airports (any of). */
+  from: string[];
+  /** Arrival airports (any of). Omit for "anywhere". */
+  to?: string[];
+  dateFrom: string;
+  dateTo: string;
+  window: TimeWindow;
+}
+
+export interface OneWayResult {
+  legs: Leg[];
+  /**
+   * False if the provider may have missed fares (results cut off, or it can't
+   * answer this kind of query). The engine then won't use the result as a
+   * lower bound for pruning.
+   */
+  complete: boolean;
+}
+
+export interface FareProvider {
+  id: ProviderId;
+  name: string;
+  cheapestOneWay(q: OneWayQuery): Promise<OneWayResult>;
+  /**
+   * The cheapest fare on each day of a month on one route, at any time of day.
+   * Optional: providers without it can't take part in calendar searches.
+   */
+  calendar?(from: string, to: string, month: string): Promise<CalendarResult>;
+}
+
+export interface CalendarResult {
+  /** At most one leg per day: that day's cheapest. */
+  legs: Leg[];
+  /** False if days may be missing or not truly the cheapest. */
+  complete: boolean;
+}
+
+/** "Check live price" request: one trip plus the rules it was found under. */
+export interface LiveCheckRequest {
+  out: { from: string; to: string; depart: string; flightNumber: string };
+  back: { from: string; to: string; depart: string; flightNumber: string };
+  origins: string[];
+  outWindow: TimeWindow;
+  returnWindow: TimeWindow;
+  minHoursAtDestination: number;
+  mixAirports: boolean;
+}
+
+export interface LiveCheckResponse {
+  /** The same flights on Google Flights, if found. */
+  sameOut?: Leg;
+  sameBack?: Leg;
+  sameTotal?: number;
+  /** Cheapest direct trip Google has on these dates that fits the rules. */
+  best?: { out: Leg; back: Leg; total: number; hoursAtDestination: number };
+  /** SerpApi searches left this month, if the account says. */
+  searchesLeft?: number;
+  checkedAt: string;
+}
+
+/** "Find a hotel" request: where and when, and for how many people. */
+export interface HotelRequest {
+  /** Destination airport; the hotel is searched in the city it serves. */
+  airport: string;
+  checkIn: string; // YYYY-MM-DD
+  checkOut: string; // YYYY-MM-DD
+  people: number;
+}
+
+export interface HotelOption {
+  name: string;
+  stars?: number;
+  /** Google rating out of 5. */
+  rating?: number;
+  reviews?: number;
+  /** Google's location score out of 5 (transport, sights, food nearby). */
+  locationRating?: number;
+  /** Straight-line distance to the city centre. */
+  kmFromCentre?: number;
+  /** A nearby place and how long it takes to get there, e.g. "Busáras, 2 min walk". */
+  nearby?: string;
+  /** Whole stay, one room. */
+  pricePerRoom: number;
+  link?: string;
+}
+
+export interface HotelResponse {
+  city: string;
+  nights: number;
+  rooms: number;
+  people: number;
+  /** Cheapest decent, well-located hotel; whole stay, all rooms. */
+  best?: HotelOption & { total: number };
+  /** The next cheapest that also qualify. */
+  alternatives: (HotelOption & { total: number })[];
+  /** Google Hotels search for the same city and dates. */
+  searchUrl: string;
+}
