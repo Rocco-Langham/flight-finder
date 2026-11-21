@@ -28,16 +28,10 @@ Find the cheapest day trips and weekend getaways from your local airports.
 
 To stop it, press **Ctrl + C** in the Terminal window.
 
-## Optional: live prices and hotels
-
-The **Check live price** and **Find a hotel** buttons need a free key:
-
-1. Sign up at [serpapi.com](https://serpapi.com) and copy your API key.
-2. In the folder, make a copy of `.env.example` called `.env.local`.
-3. Open `.env.local` and paste your key after `SERPAPI_KEY=`.
-4. Stop the app (Ctrl + C) and run `npm run dev` again.
+Live prices (**Check live price**) and **Find a hotel** work straight away: the download includes a shared key.
 
 ## If something goes wrong
 
 - **"Ryanair is temporarily refusing requests"**: you've searched a lot in a short time. Wait 5–10 minutes and try again.
+- **Live price or hotel says the limit is reached**: the shared key has used up this month's free searches. They reset monthly.
 - **`npm` not found**: Node.js isn't installed yet (see Install, step 1). Close and reopen Terminal after installing it.
