@@ -64,7 +64,7 @@ export function HotelCheck({ trip }: { trip: Trip }) {
             ? `Cheapest 3★+ hotel rated 4.0+ near the centre of ${trip.destination.transfer?.city ?? trip.destination.city}, for ${people} ${people === 1 ? "person" : "people"}. Uses 1 SerpApi search; repeats within 6 hours are free.`
             : "Add SERPAPI_KEY to .env.local to find hotels."
         }
-        className="text-sm font-medium text-sky-700 hover:underline disabled:cursor-not-allowed disabled:text-slate-400 disabled:no-underline"
+        className="text-sm font-medium text-sky-700 dark:text-sky-400 hover:underline disabled:cursor-not-allowed disabled:text-slate-400 dark:disabled:text-slate-600 disabled:no-underline"
       >
         {state.kind === "loading"
           ? "Finding a hotel…"
@@ -77,7 +77,7 @@ export function HotelCheck({ trip }: { trip: Trip }) {
 
   if (state.kind === "error") {
     return (
-      <p className="basis-full text-xs text-red-700">
+      <p className="basis-full text-xs text-red-700 dark:text-red-300">
         {state.message}{" "}
         <button type="button" onClick={find} className="underline">
           Try again
@@ -92,8 +92,10 @@ export function HotelCheck({ trip }: { trip: Trip }) {
   const roomsText = `${data.rooms} room${data.rooms === 1 ? "" : "s"}, ${data.nights} night${data.nights === 1 ? "" : "s"}`;
 
   return (
-    <div className="mt-1 basis-full space-y-1.5 rounded-lg border border-violet-100 bg-violet-50 px-3 py-2 text-xs text-slate-700">
-      <p className="font-semibold text-slate-800">Hotel in {data.city}</p>
+    <div className="mt-1 basis-full space-y-1.5 rounded-lg border border-violet-100 dark:border-violet-900 bg-violet-50 dark:bg-violet-950/40 px-3 py-2 text-xs text-slate-700 dark:text-slate-300">
+      <p className="font-semibold text-slate-800 dark:text-slate-200">
+        Hotel in {data.city}
+      </p>
       {h ? (
         <>
           <p>
@@ -109,16 +111,18 @@ export function HotelCheck({ trip }: { trip: Trip }) {
             ) : (
               <span className="font-medium">{h.name}</span>
             )}{" "}
-            <span className="text-amber-600">{stars(h.stars)}</span>
+            <span className="text-amber-600 dark:text-amber-400">
+              {stars(h.stars)}
+            </span>
             {h.rating !== undefined && (
-              <span className="text-slate-500">
+              <span className="text-slate-500 dark:text-slate-400">
                 {" "}
                 · {h.rating.toFixed(1)}/5
                 {h.reviews ? ` (${h.reviews.toLocaleString("en-GB")})` : ""}
               </span>
             )}
           </p>
-          <p className="text-slate-500">
+          <p className="text-slate-500 dark:text-slate-400">
             {h.kmFromCentre !== undefined &&
               `${h.kmFromCentre} km from the centre`}
             {h.kmFromCentre !== undefined && h.nearby && " · "}
@@ -128,26 +132,26 @@ export function HotelCheck({ trip }: { trip: Trip }) {
             <span className="font-semibold">{fmtPrice(h.total)}</span> for{" "}
             {roomsText}
             {data.rooms > 1 && (
-              <span className="text-slate-500">
+              <span className="text-slate-500 dark:text-slate-400">
                 {" "}
                 ({fmtPrice(h.pricePerRoom)} a room)
               </span>
             )}
           </p>
-          <p className="rounded-md bg-white px-2 py-1 text-sm">
+          <p className="rounded-md bg-white dark:bg-slate-900 px-2 py-1 text-sm">
             Flights + hotel:{" "}
-            <span className="font-bold text-emerald-700">
+            <span className="font-bold text-emerald-700 dark:text-emerald-400">
               {fmtPrice(flights + h.total)}
             </span>
             {people > 1 && (
-              <span className="text-slate-500">
+              <span className="text-slate-500 dark:text-slate-400">
                 {" "}
                 · {fmtPrice((flights + h.total) / people)} each
               </span>
             )}
           </p>
           {data.alternatives.length > 0 && (
-            <p className="text-slate-500">
+            <p className="text-slate-500 dark:text-slate-400">
               Also:{" "}
               {data.alternatives
                 .map((a) => `${a.name} ${fmtPrice(a.total)}`)
@@ -156,7 +160,7 @@ export function HotelCheck({ trip }: { trip: Trip }) {
           )}
         </>
       ) : (
-        <p className="text-slate-500">
+        <p className="text-slate-500 dark:text-slate-400">
           No 3★+ hotel rated 4.0+ near the centre found for these dates.
         </p>
       )}
@@ -164,7 +168,7 @@ export function HotelCheck({ trip }: { trip: Trip }) {
         href={data.searchUrl}
         target="_blank"
         rel="noopener noreferrer"
-        className="text-sky-700 hover:underline"
+        className="text-sky-700 dark:text-sky-400 hover:underline"
       >
         More hotels on Google ↗
       </a>

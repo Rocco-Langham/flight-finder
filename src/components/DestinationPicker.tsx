@@ -177,13 +177,16 @@ export function DestinationPicker({
         aria-expanded={open && options.length > 0}
         aria-controls="ff-destination-options"
         aria-label="Destination"
-        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+        className="w-full rounded-lg border border-slate-300 dark:border-slate-600 px-3 py-2 text-sm"
       />
       {value && (
-        <p className="mt-1.5 text-sm text-slate-700">
+        <p className="mt-1.5 text-sm text-slate-700 dark:text-slate-300">
           <span className="font-medium">{value.label}</span>
           {value.codes.length > 1 && (
-            <span className="text-slate-500"> · {value.codes.join(", ")}</span>
+            <span className="text-slate-500 dark:text-slate-400">
+              {" "}
+              · {value.codes.join(", ")}
+            </span>
           )}
         </p>
       )}
@@ -192,7 +195,7 @@ export function DestinationPicker({
         <ul
           id="ff-destination-options"
           role="listbox"
-          className="absolute z-20 mt-1 max-h-80 w-full overflow-auto rounded-xl border border-slate-200 bg-white py-1 shadow-lg"
+          className="absolute z-20 mt-1 max-h-80 w-full overflow-auto rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 py-1 shadow-lg"
         >
           {options.map((o, i) => (
             <li
@@ -210,42 +213,42 @@ export function DestinationPicker({
                 choose(o);
               }}
               onMouseEnter={() => setActive(i)}
-              className={`cursor-pointer px-3 py-2 text-sm ${i === active ? "bg-sky-50" : ""}`}
+              className={`cursor-pointer px-3 py-2 text-sm ${i === active ? "bg-sky-50 dark:bg-sky-950/40" : ""}`}
             >
               {o.kind === "country" && (
                 <>
-                  <span className="font-medium text-slate-900">
+                  <span className="font-medium text-slate-900 dark:text-slate-100">
                     Anywhere in {o.name}
                   </span>
-                  <span className="block text-xs text-slate-500">
+                  <span className="block text-xs text-slate-500 dark:text-slate-400">
                     Cheapest trip to each of its {o.airports} airports
                   </span>
                 </>
               )}
               {o.kind === "city" && (
                 <>
-                  <span className="font-medium text-slate-900">
+                  <span className="font-medium text-slate-900 dark:text-slate-100">
                     {o.name}: all airports
                   </span>
-                  <span className="block text-xs text-slate-500">
+                  <span className="block text-xs text-slate-500 dark:text-slate-400">
                     {o.codes.join(", ")} · {o.country}
                   </span>
                 </>
               )}
               {o.kind === "airport" && (
                 <>
-                  <span className="text-slate-900">
+                  <span className="text-slate-900 dark:text-slate-100">
                     {o.airport.name}{" "}
-                    <span className="font-mono text-xs text-slate-500">
+                    <span className="font-mono text-xs text-slate-500 dark:text-slate-400">
                       {o.airport.code}
                     </span>
                   </span>
-                  <span className="block text-xs text-slate-500">
+                  <span className="block text-xs text-slate-500 dark:text-slate-400">
                     {o.airport.city !== o.airport.name &&
                       `${o.airport.city} · `}
                     {o.airport.country}
                     {o.airport.transfer && o.airport.transfer.minutes > 30 && (
-                      <span className="text-amber-700">
+                      <span className="text-amber-700 dark:text-amber-400">
                         {" "}
                         · ~{o.airport.transfer.minutes} min to{" "}
                         {o.airport.transfer.city}

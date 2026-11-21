@@ -35,7 +35,7 @@ export function CountryFilter({
   return (
     <div className="space-y-2.5">
       <div className="flex flex-wrap items-center gap-3">
-        <div className="flex gap-0.5 rounded-lg bg-slate-100 p-0.5 text-xs font-medium">
+        <div className="flex gap-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 p-0.5 text-xs font-medium">
           {(
             [
               ["exclude", "Hide these"],
@@ -49,8 +49,8 @@ export function CountryFilter({
               aria-pressed={value.mode === mode}
               className={`rounded-md px-2.5 py-1 transition ${
                 value.mode === mode
-                  ? "bg-white text-slate-900 shadow-sm"
-                  : "text-slate-500 hover:text-slate-800"
+                  ? "bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-sm"
+                  : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
               }`}
             >
               {label}
@@ -61,7 +61,7 @@ export function CountryFilter({
         <select
           value=""
           onChange={(e) => e.target.value && add(e.target.value)}
-          className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-sm text-slate-700"
+          className="rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-2 py-1 text-sm text-slate-700 dark:text-slate-300"
           aria-label="Add a country"
         >
           <option value="">Add a country…</option>
@@ -78,7 +78,7 @@ export function CountryFilter({
           <button
             type="button"
             onClick={() => onChange({ ...value, codes: [] })}
-            className="text-xs text-slate-500 hover:text-slate-800 hover:underline"
+            className="text-xs text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:underline"
           >
             Clear
           </button>
@@ -95,8 +95,8 @@ export function CountryFilter({
               title="Remove"
               className={`flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs ${
                 hide
-                  ? "border-rose-200 bg-rose-50 text-rose-700 line-through decoration-rose-300"
-                  : "border-emerald-200 bg-emerald-50 text-emerald-800"
+                  ? "border-rose-200 dark:border-rose-900 bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 line-through decoration-rose-300 dark:decoration-rose-700"
+                  : "border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300"
               }`}
             >
               {names.get(code) ?? code}
@@ -107,7 +107,7 @@ export function CountryFilter({
           ))}
         </div>
       ) : (
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-slate-500 dark:text-slate-400">
           {hide
             ? "No countries hidden."
             : "Pick the countries you want. Until you do, every country is shown."}
@@ -116,7 +116,7 @@ export function CountryFilter({
 
       {suggestions.length > 0 && (
         <div className="flex flex-wrap items-center gap-1.5">
-          <span className="text-xs text-slate-500">
+          <span className="text-xs text-slate-500 dark:text-slate-400">
             {hide ? "Hide from results:" : "Add from results:"}
           </span>
           {suggestions.map((c) => (
@@ -124,9 +124,12 @@ export function CountryFilter({
               key={c.code}
               type="button"
               onClick={() => add(c.code)}
-              className="rounded-full border border-slate-200 bg-white px-2.5 py-0.5 text-xs text-slate-600 hover:border-slate-400"
+              className="rounded-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2.5 py-0.5 text-xs text-slate-600 dark:text-slate-400 hover:border-slate-400 dark:hover:border-slate-500"
             >
-              {c.name} <span className="text-slate-400">{c.count}</span>
+              {c.name}{" "}
+              <span className="text-slate-400 dark:text-slate-500">
+                {c.count}
+              </span>
             </button>
           ))}
         </div>

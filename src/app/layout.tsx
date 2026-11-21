@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { themeScript } from "@/lib/theme";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -14,15 +15,21 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Cheap Escapes: cheapest day trips & weekend flights",
-  description: "Find the absolute cheapest day trips and Friday-night getaways from your local airports.",
+  description:
+    "Find the absolute cheapest day trips and Friday-night getaways from your local airports.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en-GB"
+      // The theme script adds `dark` before React loads.
+      suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+      </head>
       <body className="min-h-full flex flex-col font-sans">{children}</body>
     </html>
   );

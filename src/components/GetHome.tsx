@@ -69,12 +69,12 @@ export function GetHome({ trip }: { trip: Trip }) {
   ];
 
   return (
-    <div className="space-y-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800">
+    <div className="space-y-2 rounded-lg border border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950/40 px-3 py-2 text-xs text-red-800 dark:text-red-200">
       <p className="font-semibold">
         ⚠ You fly out from {leftFrom.name} ({leftFrom.code}) but back to{" "}
         {landsAt.name} ({landsAt.code}).
       </p>
-      <p className="text-red-700">
+      <p className="text-red-700 dark:text-red-300">
         Book each flight separately (links above). Landing at {arrives}
         {late && ", so check the last trains and buses"}.
       </p>
@@ -84,7 +84,7 @@ export function GetHome({ trip }: { trip: Trip }) {
         placeholder="Your address or postcode"
         aria-label="Your address or postcode"
         autoComplete="street-address"
-        className="w-full rounded-md border border-red-200 bg-white px-2 py-1 text-sm text-slate-800"
+        className="w-full rounded-md border border-red-200 dark:border-red-900 bg-white dark:bg-slate-900 px-2 py-1 text-sm text-slate-800 dark:text-slate-200"
       />
       <div className="grid gap-2 sm:grid-cols-2">
         {buttons.map((b) =>
@@ -102,14 +102,14 @@ export function GetHome({ trip }: { trip: Trip }) {
             <span
               key={b.label}
               title="Enter your address first"
-              className="cursor-not-allowed rounded-md bg-red-200 px-2.5 py-1.5 text-center text-sm font-medium text-red-50"
+              className="cursor-not-allowed rounded-md bg-red-200 dark:bg-red-900/40 px-2.5 py-1.5 text-center text-sm font-medium text-red-50 dark:text-red-300/60"
             >
               {b.label}
             </span>
           ),
         )}
       </div>
-      <p className="text-[11px] text-red-600">
+      <p className="text-[11px] text-red-600 dark:text-red-400">
         Opens Google Maps with train, bus and tram routes. Your address stays in
         this browser and only goes to Google Maps when you open directions.
       </p>

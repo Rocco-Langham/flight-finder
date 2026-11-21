@@ -275,14 +275,14 @@ export function FlightSearch() {
   return (
     <div className="space-y-6">
       <form
-        className="space-y-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6"
+        className="space-y-5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5 shadow-sm sm:p-6"
         onSubmit={(e) => {
           e.preventDefault();
           runSearch();
         }}
       >
         {/* Mode */}
-        <div className="flex gap-1 rounded-xl bg-slate-100 p-1">
+        <div className="flex gap-1 rounded-xl bg-slate-100 dark:bg-slate-800 p-1">
           {(
             [
               ["explore", "Anywhere cheap"],
@@ -295,8 +295,8 @@ export function FlightSearch() {
               onClick={() => set("mode", mode)}
               className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium transition ${
                 form.mode === mode
-                  ? "bg-white text-slate-900 shadow-sm"
-                  : "text-slate-500 hover:text-slate-800"
+                  ? "bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-sm"
+                  : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
               }`}
             >
               {label}
@@ -318,7 +318,7 @@ export function FlightSearch() {
               </Chip>
             ))}
           </div>
-          <p className="mt-1.5 text-xs text-slate-500">
+          <p className="mt-1.5 text-xs text-slate-500 dark:text-slate-400">
             {PRESETS[form.preset].hint}
           </p>
         </Field>
@@ -338,7 +338,7 @@ export function FlightSearch() {
             <button
               type="button"
               onClick={() => setShowAllAirports((s) => !s)}
-              className="px-2 text-sm text-sky-700 hover:underline"
+              className="px-2 text-sm text-sky-700 dark:text-sky-400 hover:underline"
             >
               {showAllAirports ? "Fewer airports" : "More airports…"}
             </button>
@@ -384,19 +384,19 @@ export function FlightSearch() {
                 type="date"
                 value={form.dateFrom}
                 onChange={(e) => set("dateFrom", e.target.value)}
-                className="rounded-lg border border-slate-300 px-2 py-1.5 text-sm"
+                className="rounded-lg border border-slate-300 dark:border-slate-600 px-2 py-1.5 text-sm"
               />
-              <span className="text-slate-400">and</span>
+              <span className="text-slate-400 dark:text-slate-500">and</span>
               <input
                 type="date"
                 value={form.dateTo}
                 min={form.dateFrom}
                 onChange={(e) => set("dateTo", e.target.value)}
-                className="rounded-lg border border-slate-300 px-2 py-1.5 text-sm"
+                className="rounded-lg border border-slate-300 dark:border-slate-600 px-2 py-1.5 text-sm"
               />
             </div>
             <p
-              className={`mt-1.5 text-xs ${dateCount > MAX_OUTBOUND_DATES ? "text-amber-700" : "text-slate-500"}`}
+              className={`mt-1.5 text-xs ${dateCount > MAX_OUTBOUND_DATES ? "text-amber-700 dark:text-amber-400" : "text-slate-500 dark:text-slate-400"}`}
             >
               {dateCount} outbound date{dateCount === 1 ? "" : "s"}
               {dateCount > MAX_OUTBOUND_DATES &&
@@ -416,7 +416,7 @@ export function FlightSearch() {
                       onClick={() =>
                         set("dateTo", addMonths(form.dateFrom, months))
                       }
-                      className="ml-1.5 text-sky-700 hover:underline"
+                      className="ml-1.5 text-sky-700 dark:text-sky-400 hover:underline"
                     >
                       {label}
                     </button>
@@ -490,9 +490,11 @@ export function FlightSearch() {
                 onChange={(e) =>
                   set("minHoursAtDestination", Number(e.target.value))
                 }
-                className="w-20 rounded-lg border border-slate-300 px-2 py-1.5 text-sm"
+                className="w-20 rounded-lg border border-slate-300 dark:border-slate-600 px-2 py-1.5 text-sm"
               />
-              <span className="text-sm text-slate-500">hours</span>
+              <span className="text-sm text-slate-500 dark:text-slate-400">
+                hours
+              </span>
             </div>
           </Field>
         </div>
@@ -503,7 +505,7 @@ export function FlightSearch() {
             <select
               value={form.people}
               onChange={(e) => set("people", Number(e.target.value))}
-              className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm"
+              className="rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-2 py-1.5 text-sm"
             >
               {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
                 <option key={n} value={n}>
@@ -514,18 +516,18 @@ export function FlightSearch() {
           </Field>
           <Field label="Max price per person">
             <div className="flex items-center gap-1">
-              <span className="text-slate-500">£</span>
+              <span className="text-slate-500 dark:text-slate-400">£</span>
               <input
                 type="number"
                 min={1}
                 value={form.maxPrice}
                 onChange={(e) => set("maxPrice", e.target.value)}
                 placeholder="No limit"
-                className="w-28 rounded-lg border border-slate-300 px-2 py-1.5 text-sm"
+                className="w-28 rounded-lg border border-slate-300 dark:border-slate-600 px-2 py-1.5 text-sm"
               />
             </div>
           </Field>
-          <label className="flex cursor-pointer items-center gap-2 pb-1.5 text-sm text-slate-700">
+          <label className="flex cursor-pointer items-center gap-2 pb-1.5 text-sm text-slate-700 dark:text-slate-300">
             <input
               type="checkbox"
               checked={form.mixAirports}
@@ -536,7 +538,7 @@ export function FlightSearch() {
           </label>
           {form.mode === "route" && (
             <label
-              className={`flex items-start gap-2 pb-1.5 text-sm ${serpEnabled ? "cursor-pointer text-slate-700" : "text-slate-400"}`}
+              className={`flex items-start gap-2 pb-1.5 text-sm ${serpEnabled ? "cursor-pointer text-slate-700 dark:text-slate-300" : "text-slate-400 dark:text-slate-500"}`}
               title={serpEnabled ? undefined : source("serpapi")?.note}
             >
               <input
@@ -548,7 +550,7 @@ export function FlightSearch() {
               />
               <span>
                 Live Google Flights check (easyJet, Jet2 &amp; more)
-                <span className="block text-xs text-slate-500">
+                <span className="block text-xs text-slate-500 dark:text-slate-400">
                   {serpEnabled
                     ? `Uses up to ${liveCheckCalls} of your SerpApi searches (repeats within 3h are free)`
                     : "Add SERPAPI_KEY to .env.local to turn on"}
@@ -558,7 +560,7 @@ export function FlightSearch() {
           )}
         </div>
 
-        <div className="flex flex-wrap items-center gap-4 border-t border-slate-100 pt-4">
+        <div className="flex flex-wrap items-center gap-4 border-t border-slate-100 dark:border-slate-800 pt-4">
           <button
             type="submit"
             disabled={loading || !hydrated}
@@ -566,7 +568,7 @@ export function FlightSearch() {
           >
             {loading ? "Searching…" : "Find cheapest"}
           </button>
-          <div className="text-xs text-slate-500">
+          <div className="text-xs text-slate-500 dark:text-slate-400">
             <p>
               Direct flights · price per person · cheapest fare (small
               under-seat bag only)
@@ -580,7 +582,9 @@ export function FlightSearch() {
                     <span
                       key={s.id}
                       className={
-                        s.enabled ? "text-slate-600" : "text-slate-400"
+                        s.enabled
+                          ? "text-slate-600 dark:text-slate-400"
+                          : "text-slate-400 dark:text-slate-500"
                       }
                       title={s.note}
                     >
@@ -603,7 +607,7 @@ export function FlightSearch() {
         </div>
 
         {error && (
-          <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+          <p className="rounded-lg bg-red-50 dark:bg-red-950/40 px-3 py-2 text-sm text-red-700 dark:text-red-300">
             {error}
           </p>
         )}
@@ -662,7 +666,7 @@ function Field({
 }) {
   return (
     <div>
-      <div className="mb-1.5 text-xs font-semibold tracking-wide text-slate-500 uppercase">
+      <div className="mb-1.5 text-xs font-semibold tracking-wide text-slate-500 dark:text-slate-400 uppercase">
         {label}
       </div>
       {children}
@@ -692,7 +696,7 @@ function Chip({
       className={`rounded-full border transition ${small ? "px-3 py-1 text-xs" : "px-3.5 py-1.5 text-sm"} ${
         active
           ? "border-sky-600 bg-sky-600 text-white"
-          : "border-slate-300 bg-white text-slate-700 hover:border-slate-400"
+          : "border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:border-slate-400 dark:hover:border-slate-500"
       }`}
     >
       {children}
@@ -713,14 +717,14 @@ function TimeRange({
         type="time"
         value={value.from}
         onChange={(e) => onChange({ ...value, from: e.target.value })}
-        className="rounded-lg border border-slate-300 px-2 py-1.5 text-sm"
+        className="rounded-lg border border-slate-300 dark:border-slate-600 px-2 py-1.5 text-sm"
       />
-      <span className="text-slate-400">–</span>
+      <span className="text-slate-400 dark:text-slate-500">–</span>
       <input
         type="time"
         value={value.to}
         onChange={(e) => onChange({ ...value, to: e.target.value })}
-        className="rounded-lg border border-slate-300 px-2 py-1.5 text-sm"
+        className="rounded-lg border border-slate-300 dark:border-slate-600 px-2 py-1.5 text-sm"
       />
     </div>
   );
@@ -728,8 +732,8 @@ function TimeRange({
 
 function LoadingCard() {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-slate-500">
-      <div className="mx-auto mb-3 size-8 animate-spin rounded-full border-4 border-slate-200 border-t-sky-600" />
+    <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-8 text-center text-slate-500 dark:text-slate-400">
+      <div className="mx-auto mb-3 size-8 animate-spin rounded-full border-4 border-slate-200 dark:border-slate-700 border-t-sky-600" />
       Checking every fare… big date ranges can take a few seconds.
     </div>
   );

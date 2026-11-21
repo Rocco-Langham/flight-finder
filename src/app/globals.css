@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* Dark mode follows a `dark` class on <html>, set by the theme switch (or the system setting on "Auto"). */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme inline {
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
@@ -8,4 +11,23 @@
 body {
   background: #f1f5f9;
   color: #0f172a;
+}
+
+.dark {
+  color-scheme: dark; /* native date/time pickers, scrollbars */
+}
+
+.dark body {
+  background: #020617;
+  color: #e2e8f0;
+}
+
+/* Form fields don't set their own colours, so give them dark ones here. */
+.dark input:not([type="checkbox"]),
+.dark select {
+  background-color: var(--color-slate-800);
+  color: var(--color-slate-100);
+}
+.dark input::placeholder {
+  color: var(--color-slate-500);
 }
