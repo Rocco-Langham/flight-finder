@@ -7,6 +7,7 @@ import { returnBookingLink } from "@/lib/booking";
 import { GetHome } from "./GetHome";
 import { HotelCheck } from "./HotelCheck";
 import { LiveCheck, LiveCheckContext } from "./LiveCheck";
+import { cheapestOtherDate, PeakBadge, PeakNote } from "./Peaks";
 
 /** Airports further than this from the city they serve get a warning. */
 const FAR_TRANSFER_MIN = 30;
@@ -47,6 +48,15 @@ export function Results({
           {w}
         </p>
       ))}
+
+      <PeakNote
+        trips={trips.map((t) => ({ out: t.out.depart, back: t.back.depart, countryCode: t.destination.countryCode }))}
+        tip={
+          mode === "explore"
+            ? "Searching a few weeks either side usually finds much cheaper trips."
+            : "Dates just before or after are usually much cheaper: see the prices below."
+        }
+      />
 
       {trips.length === 0 && (
         <p className="rounded-2xl border border-dashed border-slate-300 dark:border-slate-600 p-6 text-center text-sm text-slate-500 dark:text-slate-400">
@@ -167,6 +177,11 @@ function TripCard({
           · {fmtHours(trip.hoursAtDestination)} there
         </span>
       </div>
+      <PeakBadge
+        out={trip.out.depart}
+        back={trip.back.depart}
+        countryCode={trip.destination.countryCode}
+      />
 
       <div className="mt-2 space-y-1.5">
         <LegRow leg={trip.out} />
@@ -276,6 +291,7 @@ function DateList({ trips }: { trips: Trip[] }) {
     ...new Map(trips.map((t) => [t.destination.code, t.destination])).values(),
   ];
   const multi = airports.length > 1;
+  const compare = cheapestOtherDate(trips, (t) => ({ place: t.destination.city, price: t.total }));
 
   return (
     <>
@@ -310,6 +326,14 @@ function DateList({ trips }: { trips: Trip[] }) {
                       → {fmtDate(t.back.depart)}
                     </div>
                   )}
+                  <PeakBadge
+                    compact
+                    out={t.out.depart}
+                    back={t.back.depart}
+                    countryCode={t.destination.countryCode}
+                    price={t.total}
+                    compare={compare.get(t)}
+                  />
                 </div>
                 <div className="hidden flex-1 sm:block">
                   <div className="h-2 rounded-full bg-slate-100 dark:bg-slate-800">
@@ -336,6 +360,13 @@ function DateList({ trips }: { trips: Trip[] }) {
                   destination
                 </p>
                 <TransferWarning airport={t.destination} />
+                <PeakBadge
+                  out={t.out.depart}
+                  back={t.back.depart}
+                  countryCode={t.destination.countryCode}
+                  price={t.total * people}
+                  compare={compare.has(t) ? compare.get(t)! * people : undefined}
+                />
                 <LegRow leg={t.out} showDate />
                 <LegRow leg={t.back} showDate />
                 <ReturnLinkRow trip={t} people={people} />

@@ -12,6 +12,7 @@ import type {
   SourceStatus,
 } from "@/lib/types";
 import { DestinationChooser } from "./DestinationChooser";
+import { cheapestOtherDate, PeakBadge, PeakNote } from "./Peaks";
 import { OriginPicker } from "./OriginPicker";
 import {
   Chip,
@@ -236,7 +237,12 @@ export function HolidaySearch({
       });
       setResult(await readSearchStream<HolidayResponse>(res, setProgress));
       setResultPeople(form.people);
-      setSearched({ origin: origins[0], places: form.chosen, from: windows[0].from });
+      setSearched({
+        schoolHolidays: form.dateMode === "holidays",
+        origin: origins[0],
+        places: form.chosen,
+        from: windows[0].from,
+      });
       requestAnimationFrame(() =>
         resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }),
       );
@@ -523,6 +529,7 @@ export function HolidaySearch({
 
 /** What a search was for, to offer live searches when there are no saved prices. */
 interface Searched {
+  schoolHolidays: boolean;
   origin: string;
   places: LongHaulPlace[];
   from: string;
@@ -546,6 +553,7 @@ function HolidayResults({
   searched: Searched | null;
 }) {
   const { trips, warnings, stats } = result;
+  const compare = cheapestOtherDate(trips, (t) => ({ place: t.destination.city, price: t.price }));
   return (
     <section className="space-y-4">
       <div className="flex flex-wrap items-baseline justify-between gap-2 px-1">
@@ -567,6 +575,14 @@ function HolidayResults({
           {w}
         </p>
       ))}
+      <PeakNote
+        trips={trips.map((t) => ({ out: t.depart, back: t.returnDepart, countryCode: t.destination.countryCode }))}
+        tip={
+          searched?.schoolHolidays
+            ? "If you can, use “Extend the search” to leave a few days before the holiday starts or come back after it ends."
+            : "Moving your dates a week or two outside these times usually costs much less."
+        }
+      />
       {trips.length === 0 && (
         <div className="space-y-3 rounded-2xl border border-dashed border-slate-300 dark:border-slate-600 p-6 text-center text-sm text-slate-500 dark:text-slate-400">
           <p>
@@ -601,6 +617,7 @@ function HolidayResults({
             key={`${t.destination.code}-${t.depart}-${t.returnDepart}`}
             trip={t}
             people={people}
+            compare={compare.get(t)}
           />
         ))}
       </div>
@@ -608,7 +625,16 @@ function HolidayResults({
   );
 }
 
-function HolidayCard({ trip: t, people }: { trip: HolidayTrip; people: number }) {
+function HolidayCard({
+  trip: t,
+  people,
+  compare,
+}: {
+  trip: HolidayTrip;
+  people: number;
+  /** Per person: the cheapest other date to the same place in these results, if any. */
+  compare?: number;
+}) {
   const journey = (stops: number, minutes?: number) =>
     [stopsText(stops), fmtMinutes(minutes)].filter(Boolean).join(", ");
   return (
@@ -650,6 +676,13 @@ function HolidayCard({ trip: t, people }: { trip: HolidayTrip; people: number })
           </span>
         )}
       </div>
+      <PeakBadge
+        out={t.depart}
+        back={t.returnDepart}
+        countryCode={t.destination.countryCode}
+        price={t.price * people}
+        compare={compare !== undefined ? compare * people : undefined}
+      />
       <ul className="mt-1.5 space-y-0.5 text-xs text-slate-600 dark:text-slate-400">
         <li>
           Out {fmtTime(t.depart)}: {journey(t.stopsOut, t.minutesOut)}
