@@ -37,7 +37,7 @@ interface Response {
 }
 
 /** Instant of a departure_at string. With no offset it's treated as local time at the airport. */
-function departureInstant(departureAt: string, timeZone: string): Date {
+export function departureInstant(departureAt: string, timeZone: string): Date {
   if (/(Z|[+-]\d\d:?\d\d)$/.test(departureAt)) return new Date(departureAt);
   const naive = departureAt.slice(0, 19);
   const guess = naiveMs(naive);
@@ -164,5 +164,81 @@ export function travelpayouts(token: string, stats?: FetchStats): FareProvider {
         complete: parts.every((p) => p.complete),
       };
     },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Round trips with connections, for "Further away" (long-haul holidays).
+
+export interface RoundTripTicket {
+  origin?: string;
+  destination?: string;
+  origin_airport?: string;
+  destination_airport?: string;
+  price?: number;
+  airline?: string;
+  flight_number?: string | number;
+  /** e.g. "2027-07-25T10:15:00+01:00": local time at the airport, with its offset. */
+  departure_at?: string;
+  return_at?: string;
+  transfers?: number;
+  return_transfers?: number;
+  duration_to?: number;
+  duration_back?: number;
+  /** Path on aviasales.com for this exact fare. */
+  link?: string;
+  /** Who sells the fare, e.g. "Kiwi.com". */
+  gate?: string;
+}
+
+export interface RoundTripQuery {
+  origin: string;
+  /** City or airport code; omit for anywhere. */
+  destination?: string;
+  departMonth: string; // YYYY-MM
+  direct: boolean;
+}
+
+export type RoundTripSource = (q: RoundTripQuery) => Promise<{ tickets: RoundTripTicket[]; complete: boolean }>;
+
+/**
+ * Cheapest recently-seen return fares for one origin departing in a month, any
+ * return date (asking without return_at gives every return month at once).
+ */
+export function travelpayoutsRoundTrips(token: string, stats?: FetchStats): RoundTripSource {
+  return async (q) => {
+    const tickets: RoundTripTicket[] = [];
+    // One route rarely has more than a page; "anywhere" can, so it gets a few.
+    const pages = q.destination ? 1 : MAX_PAGES;
+    for (let page = 1; page <= pages; page++) {
+      const p = new URLSearchParams({
+        origin: q.origin,
+        departure_at: q.departMonth,
+        one_way: "false",
+        direct: String(q.direct),
+        unique: "false",
+        sorting: "price",
+        currency: "gbp",
+        market: "uk",
+        limit: String(LIMIT),
+        page: String(page),
+        token,
+      });
+      if (q.destination) p.set("destination", q.destination);
+      let res: { success?: boolean; data?: RoundTripTicket[]; error?: string };
+      try {
+        res = await cachedJson(`${URL_BASE}?${p}`, stats);
+      } catch (e) {
+        if (e instanceof Error && /Upstream 401|Upstream 403/.test(e.message)) {
+          throw new Error("Travelpayouts rejected the token. Check TRAVELPAYOUTS_TOKEN.");
+        }
+        throw e;
+      }
+      if (res.success === false) throw new Error(`Travelpayouts: ${res.error ?? "request failed"}`);
+      const data = res.data ?? [];
+      tickets.push(...data);
+      if (data.length < LIMIT) return { tickets, complete: true };
+    }
+    return { tickets, complete: false };
   };
 }

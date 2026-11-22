@@ -1,6 +1,8 @@
-# Cheap Escapes 
+# Cheap Escapes - Updating Soon
 
 Find the cheapest day trips and weekend getaways from your local airports.
+
+Coming soon - Long Haul trips to places like Japan, for as cheap as possible!
 
 ## How to download and install
 

@@ -12,15 +12,16 @@ export default function Home() {
           Cheap Escapes <span aria-hidden>✈️</span>
         </h1>
         <p className="mt-1 text-slate-600 dark:text-slate-400">
-          The cheapest day trips and Friday-night getaways from your local
-          airports.
+          The cheapest day trips, Friday-night getaways and long-haul
+          holidays from your local airports.
         </p>
       </header>
       <FlightSearch />
       <footer className="mt-10 text-center text-xs text-slate-400 dark:text-slate-500">
         Live Ryanair fares, plus easyJet, Jet2 and others from recent searches
         (Travelpayouts) or a live Google Flights check when set up. Prices are
-        cached for up to 30 minutes. Always check the price on the
+        cached for up to 30 minutes. &ldquo;Further away&rdquo; uses
+        Travelpayouts return fares with connections. Always check the price on the
         airline&apos;s site before booking.
       </footer>
     </main>

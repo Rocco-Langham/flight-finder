@@ -42,3 +42,6 @@ next-env.d.ts
 !.env.example
 # The shared SerpApi key is committed on purpose (owner's choice); personal overrides go in .env.local.
 !.env
+
+# saved Ryanair answers (see src/lib/http.ts)
+/.cache/

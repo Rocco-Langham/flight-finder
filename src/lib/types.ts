@@ -224,3 +224,60 @@ export interface HotelResponse {
   /** Google Hotels search for the same city and dates. */
   searchUrl: string;
 }
+
+// ---------------------------------------------------------------------------
+// "Further away": long-haul holidays (round trips, connections allowed).
+
+/** A stretch of dates the whole trip must fit inside: leave on/after `from`, back by `to`. */
+export interface DateWindow {
+  from: string; // YYYY-MM-DD
+  to: string; // YYYY-MM-DD
+  /** E.g. "Summer holidays", shown on results. */
+  label?: string;
+}
+
+export interface HolidayRequest {
+  origins: string[];
+  /** City or airport codes. Empty = anywhere far away. */
+  destinations: string[];
+  windows: DateWindow[];
+  minNights: number;
+  maxNights: number;
+  /** Most stops allowed each way: 0 = direct only. */
+  maxStops: number;
+  maxPrice?: number;
+}
+
+export interface HolidayTrip {
+  destination: AirportRef;
+  from: AirportRef;
+  /** Naive local "YYYY-MM-DDTHH:MM" departure times. */
+  depart: string;
+  returnDepart: string;
+  nights: number;
+  /** Return fare per person. */
+  price: number;
+  currency: string;
+  stopsOut: number;
+  stopsBack: number;
+  /** Total journey minutes each way, if known. */
+  minutesOut?: number;
+  minutesBack?: number;
+  /** Airline of the first flight (connections may use others). */
+  airline: string;
+  /** The travel agent or airline selling this fare, e.g. "Kiwi.com". */
+  soldBy?: string;
+  /** Which date window it fits, e.g. "Summer holidays". */
+  window?: string;
+  /** The exact fare on Aviasales (where it was found). */
+  fareUrl?: string;
+  /** Same trip on Google Flights, to compare and book. */
+  googleUrl: string;
+}
+
+export interface HolidayResponse {
+  /** Anywhere: cheapest per destination. Specific places: cheapest per destination and date. */
+  trips: HolidayTrip[];
+  warnings: string[];
+  stats: { upstreamCalls: number; cacheHits: number; ms: number };
+}

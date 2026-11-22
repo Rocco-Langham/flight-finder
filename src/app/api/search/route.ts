@@ -1,6 +1,7 @@
 import { newStats } from "@/lib/http";
 import { providers } from "@/lib/providers";
 import { search } from "@/lib/search";
+import { streamSearch } from "@/lib/stream";
 import type { SearchRequest } from "@/lib/types";
 
 const IATA = /^[A-Z]{3}$/;
@@ -82,11 +83,6 @@ export async function POST(request: Request) {
   if (typeof req === "string") return Response.json({ error: req }, { status: 400 });
 
   const stats = newStats();
-  try {
-    const set = providers(stats, { liveCheck: req.liveCheck === true });
-    return Response.json(await search(req, set, stats));
-  } catch (e) {
-    console.error(e);
-    return Response.json({ error: "Search failed. The fare source may be busy, so try again shortly." }, { status: 502 });
-  }
+  const set = providers(stats, { liveCheck: req.liveCheck === true });
+  return streamSearch(stats, () => search(req, set, stats));
 }

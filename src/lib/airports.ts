@@ -1,5 +1,6 @@
 import "server-only";
 import { cachedJson } from "@/lib/http";
+import { MIN_LONG_HAUL_KM, POPULAR_PLACES, type LongHaulPlace } from "@/lib/longhaul";
 import type { AirportRef, Transfer } from "@/lib/types";
 
 // Airport/city/country reference data from Travelpayouts' public static files
@@ -51,14 +52,18 @@ export interface AirportInfo extends AirportRef {
   metroCity: string;
   /** Centre of the city travellers head for from this airport (e.g. Brussels for Charleroi). */
   centre?: { city: string; lat: number; lon: number };
+  /** Where the airport is, for distances. */
+  coords?: Coords;
 }
 
 interface Db {
   airports: Map<string, AirportInfo>;
   countries: Map<string, string>;
+  /** Cities with at least one airport, by city code. */
+  cities: Map<string, { code: string; name: string; countryCode: string; lat: number; lon: number }>;
 }
 
-const g = globalThis as unknown as { __ffAirportDbV4?: { at: number; db: Promise<Db> } };
+const g = globalThis as unknown as { __ffAirportDbV6?: { at: number; db: Promise<Db> } };
 
 async function load(): Promise<Db> {
   const [airports, cities, countries, ryanair] = await Promise.all([
@@ -97,6 +102,7 @@ async function load(): Promise<Db> {
       timeZone: a.time_zone,
       cityCode: a.city_code,
       metroCity: metro?.name ?? city,
+      coords: a.coordinates,
     };
     const found = a.coordinates
       ? transferFor(a.code, a.coordinates, name, city, metro, citiesByCountry.get(a.country_code) ?? [])
@@ -107,16 +113,22 @@ async function load(): Promise<Db> {
     }
     map.set(a.code, info);
   }
-  return { airports: map, countries: countryNames };
+  const servedCities = new Set([...map.values()].map((a) => a.cityCode));
+  const cityList: Db["cities"] = new Map();
+  for (const c of cities) {
+    if (!c.coordinates || !servedCities.has(c.code)) continue;
+    cityList.set(c.code, { code: c.code, name: c.name, countryCode: c.country_code, lat: c.coordinates.lat, lon: c.coordinates.lon });
+  }
+  return { airports: map, countries: countryNames, cities: cityList };
 }
 
 function db(): Promise<Db> {
-  const cached = g.__ffAirportDbV4;
+  const cached = g.__ffAirportDbV6;
   if (cached && Date.now() - cached.at < DAY) return cached.db;
   const fresh = load();
-  g.__ffAirportDbV4 = { at: Date.now(), db: fresh };
+  g.__ffAirportDbV6 = { at: Date.now(), db: fresh };
   fresh.catch(() => {
-    if (g.__ffAirportDbV4?.db === fresh) g.__ffAirportDbV4 = undefined;
+    if (g.__ffAirportDbV6?.db === fresh) g.__ffAirportDbV6 = undefined;
   });
   return fresh;
 }
@@ -285,4 +297,59 @@ function transferFor(
     transfer: { city: headline.name, minutes, km: Math.round(distance), estimate: known === undefined },
     centre: { city: headline.name, lat: headline.coordinates.lat, lon: headline.coordinates.lon },
   };
+}
+
+// ---------------------------------------------------------------------------
+// Long-haul destinations ("Further away").
+
+/** Where distances for "far away" are measured from: the north of England. */
+const UK_REFERENCE = { lat: 53.35, lon: -2.27 };
+
+let longHaulCache: { at: number; list: LongHaulPlace[] } | undefined;
+
+/** Every city with an airport that's far enough away, popular places marked and tagged. */
+export async function longHaulPlaces(): Promise<LongHaulPlace[]> {
+  if (longHaulCache && Date.now() - longHaulCache.at < DAY) return longHaulCache.list;
+  const { cities, countries } = await db();
+  const popular = new Map(POPULAR_PLACES.map((p) => [p.code, p]));
+  const list: LongHaulPlace[] = [];
+  for (const c of cities.values()) {
+    const pop = popular.get(c.code);
+    if (!pop && km(UK_REFERENCE, c) < MIN_LONG_HAUL_KM) continue;
+    list.push({
+      code: c.code,
+      name: pop?.name ?? c.name,
+      country: countries.get(c.countryCode) ?? c.countryCode,
+      countryCode: c.countryCode,
+      lat: c.lat,
+      lon: c.lon,
+      ...(pop ? { popular: true, types: pop.types, ...(pop.aka ? { aka: pop.aka } : {}) } : {}),
+    });
+  }
+  longHaulCache = { at: Date.now(), list };
+  return list;
+}
+
+/** Far-away places matching a search: by city, country or code; popular ones first. */
+export async function searchLongHaulPlaces(query: string, limit = 12): Promise<LongHaulPlace[]> {
+  const q = NORMALISE(query.trim());
+  if (q.length < 2) return [];
+  const words = (s: string) => s.split(/[\s,()-]+/);
+  const scored: { p: LongHaulPlace; score: number }[] = [];
+  for (const p of await longHaulPlaces()) {
+    const name = NORMALISE(p.name);
+    const country = NORMALISE(p.country);
+    let score = -1;
+    if (p.code.toLowerCase() === q) score = 0;
+    else if (name.startsWith(q)) score = 1;
+    else if (words(name).some((w) => w.startsWith(q))) score = 2;
+    else if (p.aka?.some((a) => NORMALISE(a).startsWith(q) || words(NORMALISE(a)).some((w) => w.startsWith(q)))) score = 2;
+    else if (country.startsWith(q) || words(country).some((w) => w.startsWith(q))) score = 3;
+    if (score < 0) continue;
+    scored.push({ p, score: score - (p.popular ? 0.5 : 0) });
+  }
+  return scored
+    .sort((a, b) => a.score - b.score || a.p.name.localeCompare(b.p.name))
+    .slice(0, limit)
+    .map((s) => s.p);
 }

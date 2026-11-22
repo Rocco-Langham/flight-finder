@@ -40,7 +40,7 @@ export interface ProviderSet {
  * search, it is recorded in `errors` and its result counts as incomplete.
  */
 export function providers(stats: FetchStats, opts: { liveCheck: boolean }): ProviderSet {
-  const serpBudget: SerpApiBudget = { stats: { upstreamCalls: 0, cacheHits: 0 }, limitHit: false };
+  const serpBudget: SerpApiBudget = { stats: { upstreamCalls: 0, cacheHits: 0, done: 0 }, limitHit: false };
   const list: FareProvider[] = [ryanair(stats)];
   if (TP_TOKEN()) list.push(travelpayouts(TP_TOKEN(), stats));
   if (opts.liveCheck && SERP_KEY()) list.push(serpapi(SERP_KEY(), serpBudget));

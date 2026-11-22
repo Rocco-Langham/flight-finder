@@ -31,10 +31,18 @@ import {
   type PickerAirport,
 } from "./DestinationPicker";
 import { LiveCheckContext, type LiveRules } from "./LiveCheck";
+import { HolidaySearch } from "./HolidaySearch";
 import { Results } from "./Results";
+import {
+  Chip,
+  Field,
+  LoadingCard,
+  readSearchStream,
+  type SearchProgress,
+} from "./ui";
 
 interface FormState {
-  mode: SearchMode;
+  mode: SearchMode | "holiday";
   preset: TripPreset;
   origins: string[];
   destination: Destination | null;
@@ -95,6 +103,7 @@ export function FlightSearch() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<SearchResponse | null>(null);
+  const [progress, setProgress] = useState<SearchProgress | null>(null);
   const [hydrated, setHydrated] = useState(false);
   const [resultLabel, setResultLabel] = useState("");
   const [resultRules, setResultRules] = useState<LiveRules | null>(null);
@@ -223,8 +232,9 @@ export function FlightSearch() {
       return setError("Pick a destination.");
     }
     setLoading(true);
+    setProgress(null);
     const body: SearchRequest = {
-      mode: f.mode,
+      mode: f.mode === "route" ? "route" : "explore",
       origins: f.origins,
       destinations: f.mode === "route" ? f.destination?.codes : undefined,
       dateFrom: f.dateFrom,
@@ -246,8 +256,7 @@ export function FlightSearch() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify(body),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Search failed.");
+      const data = await readSearchStream<SearchResponse>(res, setProgress);
       setResult(data);
       setResultLabel(f.mode === "route" ? (f.destination?.label ?? "") : "");
       setResultRules({
@@ -272,6 +281,60 @@ export function FlightSearch() {
 
   const isDayTrip = form.nights.length === 1 && form.nights[0] === 0;
 
+  const modeTabs = (
+    <div className="flex gap-1 rounded-xl bg-slate-100 dark:bg-slate-800 p-1">
+      {(
+        [
+          ["explore", "Anywhere cheap"],
+          ["route", "Pick a destination"],
+          ["holiday", "Further away"],
+        ] as const
+      ).map(([mode, label]) => (
+        <button
+          key={mode}
+          type="button"
+          onClick={() => set("mode", mode)}
+          className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium transition ${
+            form.mode === mode
+              ? "bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-sm"
+              : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
+          }`}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+  const homeAirports = (
+    <div className="flex flex-wrap gap-2">
+      {visibleAirports.map((a) => (
+        <Chip
+          key={a.code}
+          active={form.origins.includes(a.code)}
+          onClick={() => set("origins", toggle(form.origins, a.code))}
+        >
+          {a.name} <span className="opacity-60">{a.code}</span>
+        </Chip>
+      ))}
+      <button
+        type="button"
+        onClick={() => setShowAllAirports((s) => !s)}
+        className="px-2 text-sm text-sky-700 dark:text-sky-400 hover:underline"
+      >
+        {showAllAirports ? "Fewer airports" : "More airports…"}
+      </button>
+    </div>
+  );
+
+  if (form.mode === "holiday") {
+    return (
+      <HolidaySearch
+        tabs={modeTabs}
+        defaultOrigins={form.origins}
+      />
+    );
+  }
+
   return (
     <div className="space-y-6">
       <form
@@ -282,27 +345,7 @@ export function FlightSearch() {
         }}
       >
         {/* Mode */}
-        <div className="flex gap-1 rounded-xl bg-slate-100 dark:bg-slate-800 p-1">
-          {(
-            [
-              ["explore", "Anywhere cheap"],
-              ["route", "Pick a destination"],
-            ] as const
-          ).map(([mode, label]) => (
-            <button
-              key={mode}
-              type="button"
-              onClick={() => set("mode", mode)}
-              className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium transition ${
-                form.mode === mode
-                  ? "bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-sm"
-                  : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        {modeTabs}
 
         {/* Trip type */}
         <Field label="Trip">
@@ -325,24 +368,7 @@ export function FlightSearch() {
 
         {/* Home airports */}
         <Field label="Fly from">
-          <div className="flex flex-wrap gap-2">
-            {visibleAirports.map((a) => (
-              <Chip
-                key={a.code}
-                active={form.origins.includes(a.code)}
-                onClick={() => set("origins", toggle(form.origins, a.code))}
-              >
-                {a.name} <span className="opacity-60">{a.code}</span>
-              </Chip>
-            ))}
-            <button
-              type="button"
-              onClick={() => setShowAllAirports((s) => !s)}
-              className="px-2 text-sm text-sky-700 dark:text-sky-400 hover:underline"
-            >
-              {showAllAirports ? "Fewer airports" : "More airports…"}
-            </button>
-          </div>
+          {homeAirports}
         </Field>
 
         {/* Destination */}
@@ -614,7 +640,7 @@ export function FlightSearch() {
       </form>
 
       <div ref={resultsRef} className="scroll-mt-4" />
-      {loading && !result && <LoadingCard />}
+      {loading && <LoadingCard progress={progress} />}
       {shownResult && (
         <div
           className={
@@ -657,52 +683,7 @@ function addMonths(date: string, months: number): string {
   return addDays(d.toISOString().slice(0, 10), -1);
 }
 
-function Field({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div>
-      <div className="mb-1.5 text-xs font-semibold tracking-wide text-slate-500 dark:text-slate-400 uppercase">
-        {label}
-      </div>
-      {children}
-    </div>
-  );
-}
 
-function Chip({
-  active,
-  onClick,
-  children,
-  small,
-  title,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-  small?: boolean;
-  title?: string;
-}) {
-  return (
-    <button
-      type="button"
-      title={title}
-      onClick={onClick}
-      aria-pressed={active}
-      className={`rounded-full border transition ${small ? "px-3 py-1 text-xs" : "px-3.5 py-1.5 text-sm"} ${
-        active
-          ? "border-sky-600 bg-sky-600 text-white"
-          : "border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:border-slate-400 dark:hover:border-slate-500"
-      }`}
-    >
-      {children}
-    </button>
-  );
-}
 
 function TimeRange({
   value,
@@ -730,11 +711,6 @@ function TimeRange({
   );
 }
 
-function LoadingCard() {
-  return (
-    <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-8 text-center text-slate-500 dark:text-slate-400">
-      <div className="mx-auto mb-3 size-8 animate-spin rounded-full border-4 border-slate-200 dark:border-slate-700 border-t-sky-600" />
-      Checking every fare… big date ranges can take a few seconds.
-    </div>
-  );
-}
+
+
+
