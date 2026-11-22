@@ -254,6 +254,9 @@ export interface HolidayTrip {
   /** Naive local "YYYY-MM-DDTHH:MM" departure times. */
   depart: string;
   returnDepart: string;
+  /** Naive local landing times (from journey length), if known. */
+  arrive?: string;
+  returnArrive?: string;
   nights: number;
   /** Return fare per person. */
   price: number;
@@ -265,6 +268,8 @@ export interface HolidayTrip {
   minutesBack?: number;
   /** Airline of the first flight (connections may use others). */
   airline: string;
+  /** First flight's number, e.g. "QR22". */
+  flightNumber?: string;
   /** The travel agent or airline selling this fare, e.g. "Kiwi.com". */
   soldBy?: string;
   /** Which date window it fits, e.g. "Summer holidays". */
@@ -280,4 +285,52 @@ export interface HolidayResponse {
   trips: HolidayTrip[];
   warnings: string[];
   stats: { upstreamCalls: number; cacheHits: number; ms: number };
+}
+
+/** "Flight details" for a Further-away trip: every flight and stop, from Google Flights. */
+export interface HolidayDetailsRequest {
+  from: string;
+  to: string;
+  /** Naive local "YYYY-MM-DDTHH:MM". */
+  depart: string;
+  returnDepart: string;
+  stopsOut: number;
+  stopsBack: number;
+}
+
+export interface FlightSegment {
+  from: { code: string; name: string };
+  to: { code: string; name: string };
+  /** Naive local "YYYY-MM-DDTHH:MM". */
+  depart: string;
+  arrive: string;
+  minutes?: number;
+  airline: string;
+  flightNumber: string;
+  plane?: string;
+  overnight?: boolean;
+}
+
+export interface Layover {
+  code: string;
+  name: string;
+  minutes: number;
+  overnight?: boolean;
+}
+
+export interface Journey {
+  segments: FlightSegment[];
+  layovers: Layover[];
+  totalMinutes?: number;
+  /** False when Google doesn't list this exact trip and this is its closest one. */
+  exact: boolean;
+}
+
+export interface HolidayDetailsResponse {
+  out?: Journey;
+  back?: Journey;
+  /** Google's price for the return trip shown, per person. */
+  price?: number;
+  /** Shared SerpApi searches left this month, if known. */
+  searchesLeft?: number;
 }

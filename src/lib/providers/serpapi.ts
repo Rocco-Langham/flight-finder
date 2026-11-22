@@ -1,6 +1,15 @@
 import { airportRef } from "@/lib/airports";
 import { cachedJson, type FetchStats } from "@/lib/http";
-import type { FareProvider, Leg, OneWayQuery, OneWayResult, TimeWindow } from "@/lib/types";
+import type {
+  FareProvider,
+  HolidayDetailsRequest,
+  HolidayDetailsResponse,
+  Journey,
+  Leg,
+  OneWayQuery,
+  OneWayResult,
+  TimeWindow,
+} from "@/lib/types";
 import { cheapestPerPair, googleFlightsUrl, inWindow } from "./common";
 
 // Google Flights via SerpApi: live prices for every airline (easyJet, Jet2...).
@@ -145,4 +154,137 @@ export async function serpapiSearchesLeft(apiKey: string): Promise<number | unde
   } catch {
     return undefined;
   }
+}
+
+// ---------------------------------------------------------------------------
+// Full itineraries for "Further away" flight details: every flight, stop and
+// plane. Two searches (outbound, then the return for the chosen outbound),
+// each cached 3h.
+
+interface SerpSegment extends SerpFlight {
+  duration?: number;
+  airplane?: string;
+  overnight?: boolean;
+}
+interface SerpLayover {
+  duration?: number;
+  name?: string;
+  id?: string;
+  overnight?: boolean;
+}
+interface SerpItinerary {
+  flights?: SerpSegment[];
+  layovers?: SerpLayover[];
+  total_duration?: number;
+  price?: number;
+  departure_token?: string;
+}
+interface SerpItineraryResponse {
+  best_flights?: SerpItinerary[];
+  other_flights?: SerpItinerary[];
+  error?: string;
+}
+
+const hhmm = (naiveTime: string) => naiveTime.slice(11, 16);
+
+function toJourney(it: SerpItinerary, exact: boolean): Journey {
+  return {
+    segments: (it.flights ?? []).map((f) => ({
+      from: { code: f.departure_airport?.id ?? "", name: f.departure_airport?.name ?? "" },
+      to: { code: f.arrival_airport?.id ?? "", name: f.arrival_airport?.name ?? "" },
+      depart: naive(f.departure_airport?.time ?? "").slice(0, 16),
+      arrive: naive(f.arrival_airport?.time ?? "").slice(0, 16),
+      minutes: f.duration,
+      airline: f.airline ?? "",
+      flightNumber: (f.flight_number ?? "").replace(/\s+/g, ""),
+      plane: f.airplane,
+      overnight: f.overnight,
+    })),
+    layovers: (it.layovers ?? []).map((l) => ({
+      code: l.id ?? "",
+      name: l.name ?? "",
+      minutes: l.duration ?? 0,
+      overnight: l.overnight,
+    })),
+    totalMinutes: it.total_duration,
+    exact,
+  };
+}
+
+/**
+ * The itinerary that best matches a trip: same departure time (and stops) if
+ * Google lists it, else the one leaving closest to that time.
+ */
+function bestMatch(options: SerpItinerary[], departTime: string, stops: number): { it: SerpItinerary; exact: boolean } | null {
+  const usable = options.filter((o) => o.flights?.length);
+  if (usable.length === 0) return null;
+  const minutes = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
+  const leaves = (o: SerpItinerary) => hhmm(naive(o.flights![0].departure_airport?.time ?? ""));
+  const exact = usable.find((o) => leaves(o) === departTime && o.flights!.length - 1 === stops);
+  if (exact) return { it: exact, exact: true };
+  const closest = [...usable].sort(
+    (a, b) =>
+      Math.abs(minutes(leaves(a)) - minutes(departTime)) - Math.abs(minutes(leaves(b)) - minutes(departTime)) ||
+      Math.abs(a.flights!.length - 1 - stops) - Math.abs(b.flights!.length - 1 - stops),
+  )[0];
+  return { it: closest, exact: leaves(closest) === departTime };
+}
+
+async function serpItineraries(apiKey: string, params: Record<string, string>): Promise<SerpItinerary[]> {
+  const p = new URLSearchParams({
+    engine: "google_flights",
+    currency: "GBP",
+    hl: "en",
+    gl: "uk",
+    api_key: apiKey,
+    ...params,
+  });
+  let res: SerpItineraryResponse;
+  try {
+    res = await cachedJson<SerpItineraryResponse>(`${URL_BASE}?${p}`, undefined, CACHE_MS);
+  } catch (e) {
+    if (e instanceof Error && /Upstream 401|Upstream 403/.test(e.message)) {
+      throw new Error("SerpApi rejected the key. Check SERPAPI_KEY.");
+    }
+    if (e instanceof Error && /Upstream 429/.test(e.message)) {
+      throw new Error("LIMIT");
+    }
+    throw e;
+  }
+  if (res.error) {
+    if (/run out of searches|limit/i.test(res.error)) throw new Error("LIMIT");
+    if (/no results|hasn't returned any results/i.test(res.error)) return [];
+    throw new Error(`Google Flights: ${res.error}`);
+  }
+  return [...(res.best_flights ?? []), ...(res.other_flights ?? [])];
+}
+
+/** Every flight, stop and plane for a round trip, matched to the trip found. */
+export async function googleRoundTripDetails(
+  apiKey: string,
+  q: HolidayDetailsRequest,
+): Promise<Omit<HolidayDetailsResponse, "searchesLeft">> {
+  const base = {
+    type: "1",
+    departure_id: q.from,
+    arrival_id: q.to,
+    outbound_date: q.depart.slice(0, 10),
+    return_date: q.returnDepart.slice(0, 10),
+  };
+  const outs = await serpItineraries(apiKey, base);
+  const out = bestMatch(outs, hhmm(q.depart), q.stopsOut);
+  if (!out) return {};
+  const result: Omit<HolidayDetailsResponse, "searchesLeft"> = {
+    out: toJourney(out.it, out.exact),
+    price: out.it.price,
+  };
+  if (out.it.departure_token) {
+    const backs = await serpItineraries(apiKey, { ...base, departure_token: out.it.departure_token });
+    const back = bestMatch(backs, hhmm(q.returnDepart), q.stopsBack);
+    if (back) {
+      result.back = toJourney(back.it, back.exact);
+      if (back.it.price) result.price = back.it.price;
+    }
+  }
+  return result;
 }

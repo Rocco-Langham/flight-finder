@@ -178,7 +178,7 @@ export function DestinationChooser({
           >
             {options.map((o, i) => (
               <li
-                key={`${o.label}-${o.hint}`}
+                key={o.places.map((p) => p.code).join(",") + o.label}
                 role="option"
                 aria-selected={i === active}
                 onMouseDown={(e) => {

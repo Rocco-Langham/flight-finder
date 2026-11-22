@@ -9,7 +9,7 @@ import { airportsNear, ukAirportName, UK_MAJOR_AIRPORTS } from "@/lib/ukAirports
 const normalise = (s: string) => s.toLowerCase().trim();
 
 export function OriginPicker({
-  origins,
+  origins = [],
   onChange,
 }: {
   origins: string[];

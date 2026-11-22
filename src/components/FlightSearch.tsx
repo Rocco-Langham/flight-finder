@@ -32,6 +32,7 @@ import {
 } from "./DestinationPicker";
 import { LiveCheckContext, type LiveRules } from "./LiveCheck";
 import { HolidaySearch } from "./HolidaySearch";
+import { SavedList, useSavedCount } from "./Saved";
 import { Results } from "./Results";
 import {
   Chip,
@@ -42,7 +43,7 @@ import {
 } from "./ui";
 
 interface FormState {
-  mode: SearchMode | "holiday";
+  mode: SearchMode | "holiday" | "saved";
   preset: TripPreset;
   origins: string[];
   destination: Destination | null;
@@ -281,6 +282,7 @@ export function FlightSearch() {
 
   const isDayTrip = form.nights.length === 1 && form.nights[0] === 0;
 
+  const savedCount = useSavedCount();
   const modeTabs = (
     <div className="flex gap-1 rounded-xl bg-slate-100 dark:bg-slate-800 p-1">
       {(
@@ -288,6 +290,7 @@ export function FlightSearch() {
           ["explore", "Anywhere cheap"],
           ["route", "Pick a destination"],
           ["holiday", "Further away"],
+          ["saved", savedCount ? `★ Saved (${savedCount})` : "★ Saved"],
         ] as const
       ).map(([mode, label]) => (
         <button
@@ -325,6 +328,8 @@ export function FlightSearch() {
       </button>
     </div>
   );
+
+  if (form.mode === "saved") return <SavedList tabs={modeTabs} />;
 
   if (form.mode === "holiday") {
     return (

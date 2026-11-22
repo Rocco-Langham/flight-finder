@@ -8,6 +8,7 @@ import { GetHome } from "./GetHome";
 import { HotelCheck } from "./HotelCheck";
 import { LiveCheck, LiveCheckContext } from "./LiveCheck";
 import { cheapestOtherDate, PeakBadge, PeakNote } from "./Peaks";
+import { SaveButton, shortId } from "./Saved";
 
 /** Airports further than this from the city they serve get a warning. */
 const FAR_TRANSFER_MIN = 30;
@@ -199,6 +200,7 @@ function TripCard({
         </button>
         <LiveCheck trip={trip} />
         <HotelCheck trip={trip} />
+        <SaveButton item={{ id: shortId(trip), kind: "short", people, trip }} />
         {trip.maybeCheaper && (
           <span
             className="text-xs text-slate-500 dark:text-slate-400"
@@ -370,9 +372,10 @@ function DateList({ trips }: { trips: Trip[] }) {
                 <LegRow leg={t.out} showDate />
                 <LegRow leg={t.back} showDate />
                 <ReturnLinkRow trip={t} people={people} />
-                <div className="flex flex-wrap pt-1">
+                <div className="flex flex-wrap items-center gap-2 pt-1">
                   <LiveCheck trip={t} />
                   <HotelCheck trip={t} />
+                  <SaveButton item={{ id: shortId(t), kind: "short", people, trip: t }} />
                 </div>
               </div>
             </details>

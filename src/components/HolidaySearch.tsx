@@ -12,6 +12,8 @@ import type {
   SourceStatus,
 } from "@/lib/types";
 import { DestinationChooser } from "./DestinationChooser";
+import { HolidayDetails } from "./HolidayDetails";
+import { holidayId, SaveButton } from "./Saved";
 import { cheapestOtherDate, PeakBadge, PeakNote } from "./Peaks";
 import { OriginPicker } from "./OriginPicker";
 import {
@@ -699,6 +701,7 @@ function HolidayCard({
           </li>
         )}
       </ul>
+      <HolidayDetails trip={t} />
 
       <div className="mt-auto flex flex-wrap gap-2 pt-3">
         {t.fareUrl && (
@@ -719,6 +722,7 @@ function HolidayCard({
         >
           Compare on Google Flights ↗
         </a>
+        <SaveButton item={{ id: holidayId(t), kind: "holiday", people, trip: t }} />
       </div>
       {t.stopsOut + t.stopsBack > 0 && (
         <p className="mt-2 text-[11px] text-slate-400 dark:text-slate-500">

@@ -141,6 +141,14 @@ async function toTrip(
   const depart = local(t.departure_at, from.timeZone);
   const returnDepart = local(t.return_at, to.timeZone);
   if (!depart || !returnDepart) return null;
+  // Landing times: leaving time plus journey time, in local time where it lands.
+  const landing = (at: string, leaveZone: string, minutes: number | undefined, landZone: string) => {
+    if (!minutes) return undefined;
+    const leave = departureInstant(at, leaveZone);
+    return toLocalNaive(new Date(leave.getTime() + minutes * 60_000), landZone).slice(0, 16);
+  };
+  const arrive = landing(t.departure_at, from.timeZone, t.duration_to, to.timeZone);
+  const returnArrive = landing(t.return_at, to.timeZone, t.duration_back, from.timeZone);
   const outDate = depart.slice(0, 10);
   const backDate = returnDepart.slice(0, 10);
   const nights = nightsBetween(outDate, backDate);
@@ -161,6 +169,8 @@ async function toTrip(
     from: ref(from),
     depart,
     returnDepart,
+    arrive,
+    returnArrive,
     nights,
     price: t.price,
     currency: "GBP",
@@ -169,6 +179,7 @@ async function toTrip(
     minutesOut: t.duration_to,
     minutesBack: t.duration_back,
     airline: airlineName(t.airline ?? ""),
+    flightNumber: t.airline && t.flight_number ? `${t.airline}${t.flight_number}` : undefined,
     soldBy: t.gate || undefined,
     window: window.label,
     fareUrl: t.link ? `https://www.aviasales.com${t.link}` : undefined,
