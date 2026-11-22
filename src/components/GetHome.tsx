@@ -68,17 +68,25 @@ export function GetHome({ trip }: { trip: Trip }) {
     },
   ];
 
+  const fullWarning = `You fly out from ${leftFrom.name} (${leftFrom.code}) but back to ${landsAt.name} (${landsAt.code}).`;
+
   return (
-    <div className="space-y-2 rounded-lg border border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950/40 px-3 py-2 text-xs text-red-800 dark:text-red-200">
-      <p className="font-semibold">
-        ⚠ You fly out from {leftFrom.name} ({leftFrom.code}) but back to{" "}
-        {landsAt.name} ({landsAt.code}).
-      </p>
-      <details className="group space-y-2">
-        <summary className="flex cursor-pointer list-none items-center gap-1 font-medium text-red-700 dark:text-red-300 hover:underline [&::-webkit-details-marker]:hidden">
-          <span className="inline-block transition-transform group-open:rotate-90">▸</span>
-          Getting to and from the airports
-        </summary>
+    <details className="group/home rounded-lg border border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950/40 px-3 py-2 text-xs text-red-800 dark:text-red-200">
+      {/* One line when closed, so it's no taller than the return-flight button on other cards. */}
+      <summary
+        title={fullWarning}
+        className="flex cursor-pointer list-none items-center justify-between gap-2 [&::-webkit-details-marker]:hidden"
+      >
+        <span className="truncate font-semibold">
+          ⚠ Out from {leftFrom.code}, back to {landsAt.code}
+        </span>
+        <span className="shrink-0 font-medium text-red-700 dark:text-red-300 hover:underline">
+          Details{" "}
+          <span className="inline-block transition-transform group-open/home:rotate-90">▸</span>
+        </span>
+      </summary>
+      <div className="mt-2 space-y-2">
+        <p className="font-semibold">{fullWarning}</p>
         <p className="text-red-700 dark:text-red-300">
           Book each flight separately (links above). Landing at {arrives}
           {late && ", so check the last trains and buses"}.
@@ -117,7 +125,7 @@ export function GetHome({ trip }: { trip: Trip }) {
         <p className="text-[11px] text-red-600 dark:text-red-400">
           Opens to Google Maps in a new tab. Your address is only sent to Google Maps and is not stored anywhere else. Use this feature to find all different methods of public transport like trains etc.
         </p>
-      </details>
-    </div>
+      </div>
+    </details>
   );
 }
