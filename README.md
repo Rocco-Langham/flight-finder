@@ -1,8 +1,10 @@
-# Cheap Escapes - Updating Soon
+# Cheap Escapes - Beta
 
 Find the cheapest day trips and weekend getaways from your local airports.
+Longer trips to places like Japan, Spain, Dubai and more for as cheap as possible!
 
-Coming soon - Long Haul trips to places like Japan, for as cheap as possible!
+This program uses a cashe to save previous searches to your drive. This is to speed up searching that have ovelapping elements.
+The more you use this program, the faster it gets. If you have large search ranges like 6months, and flights departing from lots of different airports, searches can take over 10minutes. To fix this, reduce the search area.
 
 ## How to download and install
 
