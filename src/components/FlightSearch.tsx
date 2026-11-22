@@ -33,6 +33,18 @@ import {
 import { LiveCheckContext, type LiveRules } from "./LiveCheck";
 import { HolidaySearch } from "./HolidaySearch";
 import { SavedList, useSavedCount } from "./Saved";
+import {
+  describeShort,
+  freshDates,
+  RerunNote,
+  SavedResultsNote,
+  SavedSearchList,
+  SaveSearchButton,
+  useSavedSearches,
+  type SavedSearch,
+  type ShortSnapshot,
+} from "./SavedSearches";
+import type { HolidayForm } from "./HolidaySearch";
 import { Results } from "./Results";
 import {
   Chip,
@@ -42,7 +54,7 @@ import {
   type SearchProgress,
 } from "./ui";
 
-interface FormState {
+export interface FormState {
   mode: SearchMode | "holiday" | "saved";
   preset: TripPreset;
   origins: string[];
@@ -259,6 +271,7 @@ export function FlightSearch() {
       });
       const data = await readSearchStream<SearchResponse>(res, setProgress);
       setResult(data);
+      return data as SearchResponse;
       setResultLabel(f.mode === "route" ? (f.destination?.label ?? "") : "");
       setResultRules({
         origins: body.origins,
@@ -282,6 +295,70 @@ export function FlightSearch() {
 
   const isDayTrip = form.nights.length === 1 && form.nights[0] === 0;
 
+  const savedSearches = useSavedSearches();
+  /** A saved search being re-run, to show how its price has moved. */
+  const [rerun, setRerun] = useState<SavedSearch | null>(null);
+  /** A saved Further-away search for that tab to load and run. */
+  const [pendingHoliday, setPendingHoliday] = useState<{
+    form: HolidayForm;
+    nonce: number;
+    search: SavedSearch;
+    action: "run" | "view";
+  } | null>(null);
+  /** A saved search whose saved results are on screen. */
+  const [viewing, setViewing] = useState<SavedSearch | null>(null);
+
+  /** The results on screen, to keep with a saved search. */
+  const currentSnapshot = () =>
+    result && result.mode === (form.mode === "route" ? "route" : "explore")
+      ? {
+          count: result.trips.length,
+          cheapest: result.trips.length ? Math.min(...result.trips.map((t) => t.total)) : undefined,
+          data: { result, label: resultLabel, rules: resultRules, people: form.people } satisfies ShortSnapshot,
+        }
+      : null;
+
+  /** Show a saved search's saved results, as they were (no searching). */
+  function viewSaved(s: SavedSearch) {
+    if (s.kind === "holiday") {
+      setPendingHoliday({ form: s.form, nonce: Date.now(), search: s, action: "view" });
+      set("mode", "holiday");
+      return;
+    }
+    if (!s.results) return;
+    const snap = s.results.snapshot;
+    setRerun(null);
+    setViewing(s);
+    setError(null);
+    setForm((cur) => ({ ...cur, ...s.form, people: snap.people }));
+    setResult(snap.result);
+    setResultLabel(snap.label);
+    setResultRules(snap.rules);
+    requestAnimationFrame(() =>
+      resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }),
+    );
+  }
+
+  async function runSaved(s: SavedSearch) {
+    setViewing(null);
+    if (s.kind === "holiday") {
+      const f = s.form.dateMode === "range" ? { ...s.form, ...freshDates(s.form.dateFrom, s.form.dateTo) } : s.form;
+      setPendingHoliday({ form: f, nonce: Date.now(), search: s, action: "run" });
+      set("mode", "holiday");
+      return;
+    }
+    setRerun(s);
+    const data = await runSearch({ ...s.form, ...freshDates(s.form.dateFrom, s.form.dateTo) });
+    if (data) {
+      savedSearches.update(s.id, {
+        lastRun: {
+          at: new Date().toISOString(),
+          cheapest: data.trips.length ? Math.min(...data.trips.map((t) => t.total)) : undefined,
+        },
+      });
+    }
+  }
+
   const savedCount = useSavedCount();
   const modeTabs = (
     <div className="flex gap-1 rounded-xl bg-slate-100 dark:bg-slate-800 p-1">
@@ -296,7 +373,11 @@ export function FlightSearch() {
         <button
           key={mode}
           type="button"
-          onClick={() => set("mode", mode)}
+          onClick={() => {
+            setRerun(null);
+            setViewing(null);
+            set("mode", mode);
+          }}
           className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium transition ${
             form.mode === mode
               ? "bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-sm"
@@ -329,13 +410,21 @@ export function FlightSearch() {
     </div>
   );
 
-  if (form.mode === "saved") return <SavedList tabs={modeTabs} />;
+  if (form.mode === "saved")
+    return (
+      <SavedList
+        tabs={modeTabs}
+        hasSearches={savedSearches.searches.length > 0}
+        searches={<SavedSearchList onRun={runSaved} onView={viewSaved} />}
+      />
+    );
 
   if (form.mode === "holiday") {
     return (
       <HolidaySearch
         tabs={modeTabs}
         defaultOrigins={form.origins}
+        pending={pendingHoliday}
       />
     );
   }
@@ -346,6 +435,8 @@ export function FlightSearch() {
         className="space-y-5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5 shadow-sm sm:p-6"
         onSubmit={(e) => {
           e.preventDefault();
+          setRerun(null);
+          setViewing(null);
           runSearch();
         }}
       >
@@ -599,6 +690,18 @@ export function FlightSearch() {
           >
             {loading ? "Searching…" : "Find cheapest"}
           </button>
+          <SaveSearchButton
+            make={() => ({
+              kind: "short",
+              name: describeShort(form),
+              form,
+              cheapest:
+                result && result.mode === form.mode && result.trips.length
+                  ? Math.min(...result.trips.map((t) => t.total))
+                  : undefined,
+            })}
+            snapshot={currentSnapshot}
+          />
           <div className="text-xs text-slate-500 dark:text-slate-400">
             <p>
               Direct flights · price per person · cheapest fare (small
@@ -646,6 +749,26 @@ export function FlightSearch() {
 
       <div ref={resultsRef} className="scroll-mt-4" />
       {loading && <LoadingCard progress={progress} />}
+      {rerun && shownResult && !loading && (
+        <RerunNote
+          search={rerun}
+          cheapestNow={
+            shownResult.trips.length ? Math.min(...shownResult.trips.map((t) => t.total)) : undefined
+          }
+          onSaveResults={() => {
+            const snap = currentSnapshot();
+            return snap
+              ? savedSearches.update(rerun.id, {
+                  results: { at: new Date().toISOString(), snapshot: snap.data },
+                  cheapest: snap.cheapest,
+                })
+              : false;
+          }}
+        />
+      )}
+      {viewing && shownResult && !loading && (
+        <SavedResultsNote search={viewing} onRun={() => runSaved(viewing)} />
+      )}
       {shownResult && (
         <div
           className={

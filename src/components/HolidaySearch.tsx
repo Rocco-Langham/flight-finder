@@ -12,6 +12,16 @@ import type {
   SourceStatus,
 } from "@/lib/types";
 import { DestinationChooser } from "./DestinationChooser";
+import {
+  describeHoliday,
+  freshDates,
+  RerunNote,
+  SavedResultsNote,
+  SaveSearchButton,
+  useSavedSearches,
+  type HolidaySnapshot,
+  type SavedSearch,
+} from "./SavedSearches";
 import { HolidayDetails } from "./HolidayDetails";
 import { holidayId, SaveButton } from "./Saved";
 import { cheapestOtherDate, PeakBadge, PeakNote } from "./Peaks";
@@ -34,7 +44,7 @@ interface SchoolHoliday {
   to: string;
 }
 
-interface HolidayForm {
+export interface HolidayForm {
   /** Home airports (kept apart from the other tabs: any major UK airport). */
   origins: string[];
   /** Places picked (search or map). Empty = by holiday type, or anywhere far away. */
@@ -105,7 +115,7 @@ function destinationsOf(f: HolidayForm): string[] {
 }
 
 /** The date windows a trip must fit inside. */
-function windowsOf(f: HolidayForm): DateWindow[] {
+export function windowsOf(f: HolidayForm): DateWindow[] {
   if (f.dateMode === "range") return [{ from: f.dateFrom, to: f.dateTo }];
   return f.holidays
     .filter((h) => h.from && h.to)
@@ -129,7 +139,10 @@ const stopsText = (n: number) =>
 export function HolidaySearch({
   tabs,
   defaultOrigins,
+  pending,
 }: {
+  /** A saved search to load and run (from the Saved tab). */
+  pending?: { form: HolidayForm; nonce: number; search: SavedSearch; action: "run" | "view" } | null;
   /** The mode switcher, shown at the top of the form. */
   tabs: React.ReactNode;
   /** Home airports to start with (from the other tabs), until changed here. */
@@ -187,6 +200,62 @@ export function HolidaySearch({
     localStorage.setItem(STORAGE_KEY, JSON.stringify(saved));
   }, [form, hydrated]);
 
+  // Run a saved search handed over from the Saved tab.
+  const [rerun, setRerun] = useState<SavedSearch | null>(null);
+  const { update: updateSearch } = useSavedSearches();
+  const handled = useRef<number | null>(null);
+  const [viewing, setViewing] = useState<SavedSearch | null>(null);
+
+  /** Run a saved search again: its settings, fresh prices. */
+  function rerunSaved(search: SavedSearch, f: HolidayForm) {
+    setForm((cur) => ({ ...cur, ...f }));
+    setViewing(null);
+    setRerun(search);
+    runSearch({ ...form, ...f }).then((data) => {
+      if (!data) return;
+      updateSearch(search.id, {
+        lastRun: {
+          at: new Date().toISOString(),
+          cheapest: data.trips.length ? Math.min(...data.trips.map((t) => t.price)) : undefined,
+        },
+      });
+    });
+  }
+
+  useEffect(() => {
+    if (!pending || handled.current === pending.nonce) return;
+    handled.current = pending.nonce;
+    const { form: f, search } = pending;
+    if (pending.action === "view" && search.kind === "holiday" && search.results) {
+      // Show the saved results as they were.
+      const snap = search.results.snapshot;
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- loading a saved search handed over from the Saved tab
+      setForm((cur) => ({ ...cur, ...f }));
+      setRerun(null);
+      setViewing(search);
+      setError(null);
+      setResult(snap.result);
+      setResultPeople(snap.people);
+      setSearched(snap.searched);
+      requestAnimationFrame(() =>
+        resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }),
+      );
+      return;
+    }
+    rerunSaved(search, f);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once per hand-over
+  }, [pending?.nonce]);
+
+  /** The results on screen, to keep with a saved search. */
+  const currentSnapshot = () =>
+    result
+      ? {
+          count: result.trips.length,
+          cheapest: result.trips.length ? Math.min(...result.trips.map((t) => t.price)) : undefined,
+          data: { result, people: resultPeople, searched } satisfies HolidaySnapshot,
+        }
+      : null;
+
   const set = <K extends keyof HolidayForm>(key: K, value: HolidayForm[K]) =>
     setForm((f) => ({ ...f, [key]: value }));
   const setHoliday = (id: string, patch: Partial<SchoolHoliday>) =>
@@ -196,38 +265,38 @@ export function HolidaySearch({
     );
   const disabled = source !== null && !source.enabled;
 
-  async function runSearch() {
+  async function runSearch(f: HolidayForm = form) {
     setError(null);
-    if (origins.length === 0) return setError("Pick at least one home airport.");
-    const windows = windowsOf(form);
-    if (form.dateMode === "holidays") {
-      if (form.holidays.some((h) => (h.from && !h.to) || (!h.from && h.to)))
+    if (f.origins.length === 0) return setError("Pick at least one home airport.");
+    const windows = windowsOf(f);
+    if (f.dateMode === "holidays") {
+      if (f.holidays.some((h) => (h.from && !h.to) || (!h.from && h.to)))
         return setError("Each school holiday needs a start and an end date.");
       if (windows.length === 0)
         return setError("Add at least one school holiday (start and end dates).");
     }
     if (windows.some((w) => !w.from || !w.to || w.to < w.from))
       return setError("Each date range needs an end after its start.");
-    if (form.minNights > form.maxNights)
+    if (f.minNights > f.maxNights)
       return setError("The fewest nights can't be more than the most.");
     const longest = Math.max(
       ...windows.map(
         (w) => (Date.parse(w.to) - Date.parse(w.from)) / 86_400_000,
       ),
     );
-    if (longest < form.minNights)
+    if (longest < f.minNights)
       return setError(
-        `None of the dates are long enough for ${form.minNights} nights. Shorten the trip or extend the dates.`,
+        `None of the dates are long enough for ${f.minNights} nights. Shorten the trip or extend the dates.`,
       );
 
     const body: HolidayRequest = {
-      origins,
-      destinations: destinationsOf(form),
+      origins: f.origins,
+      destinations: destinationsOf(f),
       windows,
-      minNights: form.minNights,
-      maxNights: form.maxNights,
-      maxStops: form.maxStops,
-      maxPrice: form.maxPrice ? Number(form.maxPrice) : undefined,
+      minNights: f.minNights,
+      maxNights: f.maxNights,
+      maxStops: f.maxStops,
+      maxPrice: f.maxPrice ? Number(f.maxPrice) : undefined,
     };
     setLoading(true);
     setProgress(null);
@@ -237,17 +306,19 @@ export function HolidaySearch({
         headers: { "content-type": "application/json" },
         body: JSON.stringify(body),
       });
-      setResult(await readSearchStream<HolidayResponse>(res, setProgress));
-      setResultPeople(form.people);
+      const data = await readSearchStream<HolidayResponse>(res, setProgress);
+      setResult(data);
+      setResultPeople(f.people);
       setSearched({
-        schoolHolidays: form.dateMode === "holidays",
-        origin: origins[0],
-        places: form.chosen,
+        schoolHolidays: f.dateMode === "holidays",
+        origin: f.origins[0],
+        places: f.chosen,
         from: windows[0].from,
       });
       requestAnimationFrame(() =>
         resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }),
       );
+      return data;
     } catch (e) {
       setError(e instanceof Error ? e.message : "Search failed.");
     } finally {
@@ -261,6 +332,8 @@ export function HolidaySearch({
         className="space-y-5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5 shadow-sm sm:p-6"
         onSubmit={(e) => {
           e.preventDefault();
+          setRerun(null);
+          setViewing(null);
           runSearch();
         }}
       >
@@ -504,6 +577,15 @@ export function HolidaySearch({
           >
             {loading ? "Searching…" : "Find cheapest"}
           </button>
+          <SaveSearchButton
+            make={() => ({
+              kind: "holiday",
+              name: describeHoliday(form),
+              form,
+              cheapest: result?.trips.length ? Math.min(...result.trips.map((t) => t.price)) : undefined,
+            })}
+            snapshot={currentSnapshot}
+          />
           <p className="text-xs text-slate-500 dark:text-slate-400">
             Return fares per person, connections allowed · prices from other
             travellers&apos; recent searches (Travelpayouts), so check before
@@ -520,6 +602,35 @@ export function HolidaySearch({
 
       <div ref={resultsRef} className="scroll-mt-4" />
       {loading && <LoadingCard progress={progress} perSecond={LOOKUPS_PER_SECOND} />}
+      {rerun && result && !loading && (
+        <RerunNote
+          search={rerun}
+          cheapestNow={result.trips.length ? Math.min(...result.trips.map((t) => t.price)) : undefined}
+          onSaveResults={() => {
+            const snap = currentSnapshot();
+            return snap
+              ? updateSearch(rerun.id, {
+                  results: { at: new Date().toISOString(), snapshot: snap.data },
+                  cheapest: snap.cheapest,
+                })
+              : false;
+          }}
+        />
+      )}
+      {viewing && result && !loading && (
+        <SavedResultsNote
+          search={viewing}
+          onRun={() =>
+            viewing.kind === "holiday" &&
+            rerunSaved(
+              viewing,
+              viewing.form.dateMode === "range"
+                ? { ...viewing.form, ...freshDates(viewing.form.dateFrom, viewing.form.dateTo) }
+                : viewing.form,
+            )
+          }
+        />
+      )}
       {result && (
         <div className={loading ? "pointer-events-none opacity-50 transition" : "transition"}>
           <HolidayResults result={result} people={resultPeople} searched={searched} />
@@ -530,7 +641,7 @@ export function HolidaySearch({
 }
 
 /** What a search was for, to offer live searches when there are no saved prices. */
-interface Searched {
+export interface Searched {
   schoolHolidays: boolean;
   origin: string;
   places: LongHaulPlace[];

@@ -95,7 +95,16 @@ const departOf = (s: SavedFlight) => (s.kind === "short" ? s.trip.out.depart : s
 const backOf = (s: SavedFlight) => (s.kind === "short" ? s.trip.back.depart : s.trip.returnDepart);
 
 /** The "Saved" tab: upcoming trips soonest first, then ones that have gone. */
-export function SavedList({ tabs }: { tabs: React.ReactNode }) {
+export function SavedList({
+  tabs,
+  searches,
+  hasSearches,
+}: {
+  tabs: React.ReactNode;
+  /** The saved searches section. */
+  searches: React.ReactNode;
+  hasSearches: boolean;
+}) {
   const { saved, remove, clear } = useSaved();
   const today = new Date().toISOString().slice(0, 10);
   const sorted = [...saved].sort((a, b) => departOf(a).localeCompare(departOf(b)));
@@ -108,18 +117,24 @@ export function SavedList({ tabs }: { tabs: React.ReactNode }) {
         {tabs}
         <div>
           <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
-            {saved.length === 0
-              ? "No saved flights yet"
-              : `${upcoming.length} saved trip${upcoming.length === 1 ? "" : "s"}`}
+            {saved.length === 0 && !hasSearches ? "Nothing saved yet" : "Saved"}
           </h2>
           <p className="text-sm text-slate-500 dark:text-slate-400">
-            {saved.length === 0
-              ? "Tap ☆ Save on any result to keep it here."
-              : "Prices are what they were when you saved them, so check the live price before booking."}{" "}
+            {saved.length === 0 && !hasSearches
+              ? "Tap ☆ Save on any result to keep the flight, or ☆ Save this search next to Find cheapest to keep the whole search."
+              : "Flight prices are what they were when you saved them, so check the live price before booking."}{" "}
             Saved in this browser only.
           </p>
         </div>
       </div>
+
+      {searches}
+
+      {saved.length > 0 && (
+        <h3 className="px-1 text-sm font-semibold text-slate-700 dark:text-slate-300">
+          Saved flights ({upcoming.length})
+        </h3>
+      )}
 
       {upcoming.length > 0 && (
         <div className="grid gap-3 sm:grid-cols-2">
